@@ -1,0 +1,35 @@
+﻿# Java
+*.class
+*.jar
+*.war
+target/
+*.log
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+application-local.properties
+application-local.yml
+
+# Node
+node_modules/
+dist/
+build/
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Operating system
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
