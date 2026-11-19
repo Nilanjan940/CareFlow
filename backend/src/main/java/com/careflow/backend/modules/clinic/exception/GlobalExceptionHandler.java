@@ -3,6 +3,7 @@ package com.careflow.backend.modules.clinic.exception;
 import com.careflow.backend.modules.clinic.dto.ApiErrorResponse;
 import com.careflow.backend.modules.doctor.exception.DoctorNotFoundException;
 import com.careflow.backend.modules.doctor.exception.DuplicateDoctorException;
+import com.careflow.backend.modules.patient.exception.PatientNotFoundException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -42,6 +43,17 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(PatientNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handlePatientNotFound(
+            PatientNotFoundException exception,
+            HttpServletRequest request) {
+
+        return buildResponse(
+            HttpStatus.NOT_FOUND,
+            exception.getMessage(),
+            request.getRequestURI()
+        );
+    }
     @ExceptionHandler(DuplicateClinicException.class)
     public ResponseEntity<ApiErrorResponse> handleDuplicateClinic(
             DuplicateClinicException exception,
