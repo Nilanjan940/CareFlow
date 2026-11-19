@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -54,6 +55,30 @@ public class GlobalExceptionHandler {
         return buildResponse(
             HttpStatus.BAD_REQUEST,
             message,
+            request.getRequestURI()
+        );
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleMalformedJson(
+            HttpMessageNotReadableException exception,
+            HttpServletRequest request) {
+
+        return buildResponse(
+            HttpStatus.BAD_REQUEST,
+            "Malformed JSON request.",
+            request.getRequestURI()
+        );
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiErrorResponse> handleUnexpectedError(
+            Exception exception,
+            HttpServletRequest request) {
+
+        return buildResponse(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "An unexpected error occurred.",
             request.getRequestURI()
         );
     }
