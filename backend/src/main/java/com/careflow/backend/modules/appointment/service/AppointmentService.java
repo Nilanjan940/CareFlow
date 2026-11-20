@@ -2,11 +2,13 @@ package com.careflow.backend.modules.appointment.service;
 
 import com.careflow.backend.modules.appointment.dto.AppointmentRequest;
 import com.careflow.backend.modules.appointment.dto.AppointmentResponse;
+import com.careflow.backend.modules.appointment.dto.AppointmentStatusUpdateRequest;
 import com.careflow.backend.modules.appointment.entity.Appointment;
 import com.careflow.backend.modules.appointment.entity.AppointmentStatus;
 import com.careflow.backend.modules.appointment.exception.AppointmentConflictException;
 import com.careflow.backend.modules.appointment.exception.AppointmentNotFoundException;
 import com.careflow.backend.modules.appointment.exception.InvalidAppointmentTimeException;
+import com.careflow.backend.modules.appointment.exception.InvalidAppointmentStatusException;
 import com.careflow.backend.modules.appointment.mapper.AppointmentMapper;
 import com.careflow.backend.modules.appointment.repository.AppointmentRepository;
 import com.careflow.backend.modules.clinic.entity.Clinic;
@@ -106,6 +108,47 @@ public class AppointmentService {
         return AppointmentMapper.toResponse(savedAppointment);
     }
 
+    public AppointmentResponse updateAppointmentStatus(
+        UUID clinicId,
+        UUID appointmentId,
+        AppointmentStatusUpdateRequest request
+    ) {
+
+        Appointment appointment = appointmentRepository
+            .findByIdAndClinicId(appointmentId, clinicId)
+            .orElseThrow(() -> new AppointmentNotFoundException(
+                "Appointment not found with ID: " + appointmentId
+            ));
+
+        AppointmentStatus currentStatus = appointment.getStatus();
+        AppointmentStatus requestedStatus = request.status();
+
+        boolean validTransition = switch (currentStatus) {
+            case SCHEDULED ->
+                requestedStatus == AppointmentStatus.CONFIRMED ||
+                requestedStatus == AppointmentStatus.CANCELLED;
+
+            case CONFIRMED ->
+                requestedStatus == AppointmentStatus.COMPLETED ||
+                requestedStatus == AppointmentStatus.CANCELLED;
+
+            case COMPLETED, CANCELLED -> false;
+        };
+
+        if (!validTransition) {
+            throw new InvalidAppointmentStatusException(
+                "Cannot change appointment status from " +
+                currentStatus + " to " + requestedStatus + "."
+            );
+        }
+
+        appointment.setStatus(requestedStatus);
+
+        Appointment updatedAppointment =
+            appointmentRepository.save(appointment);
+
+        return AppointmentMapper.toResponse(updatedAppointment);
+    }
     @Transactional(readOnly = true)
     public List<AppointmentResponse> getAllAppointments(UUID clinicId) {
 

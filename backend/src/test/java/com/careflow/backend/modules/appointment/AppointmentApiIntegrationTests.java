@@ -344,4 +344,186 @@ class AppointmentApiIntegrationTests {
                 )))
             .andExpect(status().isConflict());
     }
+
+    @Test
+    void shouldConfirmScheduledAppointment() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "10:00:00", "10:30:00"
+        );
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "status": "CONFIRMED"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("CONFIRMED"));
+    }
+
+    @Test
+    void shouldCancelScheduledAppointment() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "11:00:00", "11:30:00"
+        );
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "status": "CANCELLED"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("CANCELLED"));
+    }
+
+    @Test
+    void shouldCompleteConfirmedAppointment() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "12:00:00", "12:30:00"
+        );
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "status": "CONFIRMED"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("CONFIRMED"));
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "status": "COMPLETED"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("COMPLETED"));
+    }
+
+    @Test
+    void shouldRejectInvalidAppointmentStatusTransition() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "13:00:00", "13:30:00"
+        );
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "status": "COMPLETED"
+                    }
+                    """))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldPreventCrossClinicAppointmentStatusUpdate() throws Exception {
+
+        String clinicOne = createClinic();
+        String clinicTwo = createClinic();
+
+        String doctorId = createDoctor(clinicOne);
+        String patientId = createPatient(clinicOne);
+
+        String appointmentId = createAppointment(
+            clinicOne, doctorId, patientId, "14:00:00", "14:30:00"
+        );
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicTwo,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "status": "CONFIRMED"
+                    }
+                    """))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenUpdatingMissingAppointmentStatus()
+        throws Exception {
+
+        String clinicId = createClinic();
+
+        String missingAppointmentId =
+            "00000000-0000-0000-0000-000000000005";
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId,
+                missingAppointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "status": "CONFIRMED"
+                    }
+                    """))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldRejectMissingAppointmentStatus() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "15:00:00", "15:30:00"
+        );
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {}
+                    """))
+            .andExpect(status().isBadRequest());
+    }
 }

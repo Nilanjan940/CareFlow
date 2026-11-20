@@ -2,6 +2,7 @@ package com.careflow.backend.modules.appointment.controller;
 
 import com.careflow.backend.modules.appointment.dto.AppointmentRequest;
 import com.careflow.backend.modules.appointment.dto.AppointmentResponse;
+import com.careflow.backend.modules.appointment.dto.AppointmentStatusUpdateRequest;
 import com.careflow.backend.modules.appointment.service.AppointmentService;
 
 import jakarta.validation.Valid;
@@ -59,6 +60,22 @@ public class AppointmentController {
             appointmentService.getAppointmentById(
                 clinicId,
                 appointmentId
+            )
+        );
+    }
+
+    @PatchMapping("/{appointmentId}/status")
+    public ResponseEntity<AppointmentResponse> updateAppointmentStatus(
+        @PathVariable UUID clinicId,
+        @PathVariable UUID appointmentId,
+        @Valid @RequestBody AppointmentStatusUpdateRequest request
+    ) {
+
+        return ResponseEntity.ok(
+            appointmentService.updateAppointmentStatus(
+                clinicId,
+                appointmentId,
+                request
             )
         );
     }

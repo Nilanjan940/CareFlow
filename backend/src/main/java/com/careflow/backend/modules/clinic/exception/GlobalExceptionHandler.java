@@ -7,6 +7,7 @@ import com.careflow.backend.modules.patient.exception.PatientNotFoundException;
 import com.careflow.backend.modules.appointment.exception.AppointmentConflictException;
 import com.careflow.backend.modules.appointment.exception.AppointmentNotFoundException;
 import com.careflow.backend.modules.appointment.exception.InvalidAppointmentTimeException;
+import com.careflow.backend.modules.appointment.exception.InvalidAppointmentStatusException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -118,6 +119,18 @@ public class GlobalExceptionHandler {
         );
     }
 
+
+    @ExceptionHandler(InvalidAppointmentStatusException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidAppointmentStatus(
+            InvalidAppointmentStatusException exception,
+            HttpServletRequest request) {
+
+        return buildResponse(
+            HttpStatus.BAD_REQUEST,
+            exception.getMessage(),
+            request.getRequestURI()
+        );
+    }
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidationErrors(
             MethodArgumentNotValidException exception,
