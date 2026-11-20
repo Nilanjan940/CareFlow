@@ -62,6 +62,9 @@ public class Appointment {
     @Column(length = 1000)
     private String notes;
 
+    @Column(name = "cancellation_reason", length = 500)
+    private String cancellationReason;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -144,6 +147,14 @@ public class Appointment {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public String getCancellationReason() {
+        return cancellationReason;
+    }
+
+    public void setCancellationReason(String cancellationReason) {
+        this.cancellationReason = cancellationReason;
     }
 
     public LocalDateTime getCreatedAt() {

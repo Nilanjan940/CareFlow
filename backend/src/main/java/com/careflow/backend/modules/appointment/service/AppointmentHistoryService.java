@@ -61,6 +61,52 @@ public class AppointmentHistoryService {
         );
     }
 
+    public void recordRescheduled(
+        Appointment appointment,
+        Map<String, Object> oldValues
+    ) {
+
+        Map<String, Object> newValues = createSnapshot(appointment);
+
+        if (oldValues.equals(newValues)) {
+            return;
+        }
+
+        record(
+            appointment,
+            AppointmentHistoryAction.RESCHEDULED,
+            "Appointment rescheduled.",
+            oldValues,
+            newValues
+        );
+    }
+
+    public void recordCancelled(
+        Appointment appointment,
+        String oldStatus,
+        String oldCancellationReason
+    ) {
+
+        Map<String, Object> oldValues = new LinkedHashMap<>();
+        oldValues.put("status", oldStatus);
+        oldValues.put("cancellationReason", oldCancellationReason);
+
+        Map<String, Object> newValues = new LinkedHashMap<>();
+        newValues.put("status", appointment.getStatus().name());
+        newValues.put(
+            "cancellationReason",
+            appointment.getCancellationReason()
+        );
+
+        record(
+            appointment,
+            AppointmentHistoryAction.CANCELLED,
+            "Appointment cancelled.",
+            oldValues,
+            newValues
+        );
+    }
+
     public void recordStatusChanged(
         Appointment appointment,
         String oldStatus,

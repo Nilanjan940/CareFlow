@@ -27,6 +27,7 @@ public record AppointmentResponse(
     String reason,
     AppointmentStatus status,
     String notes,
+    String cancellationReason,
 
     LocalDateTime createdAt
 

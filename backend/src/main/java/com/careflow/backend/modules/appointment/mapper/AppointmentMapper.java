@@ -31,6 +31,7 @@ public class AppointmentMapper {
             appointment.getReason(),
             appointment.getStatus(),
             appointment.getNotes(),
+            appointment.getCancellationReason(),
 
             appointment.getCreatedAt()
         );

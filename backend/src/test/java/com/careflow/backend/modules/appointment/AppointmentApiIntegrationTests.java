@@ -479,6 +479,98 @@ class AppointmentApiIntegrationTests {
     }
 
     @Test
+    void shouldCancelAppointmentWithReasonAndRecordHistory()
+        throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "11:00:00", "11:30:00"
+        );
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/cancel",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "reason": "Patient requested cancellation"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("CANCELLED"))
+            .andExpect(jsonPath("$.cancellationReason")
+                .value("Patient requested cancellation"));
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/history",
+                clinicId,
+                appointmentId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$[0].action").value("CANCELLED"))
+            .andExpect(jsonPath("$[0].newValues.status").value("CANCELLED"))
+            .andExpect(jsonPath("$[0].newValues.cancellationReason")
+                .value("Patient requested cancellation"))
+            .andExpect(jsonPath("$[0].oldValues.status").value("SCHEDULED"))
+            .andExpect(jsonPath("$[1].action").value("CREATED"));
+    }
+    @Test
+    void shouldCancelAppointmentWithoutReason() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "14:00:00", "14:30:00"
+        );
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/cancel",
+                clinicId,
+                appointmentId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("CANCELLED"))
+            .andExpect(jsonPath("$.cancellationReason").doesNotExist());
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/history",
+                clinicId,
+                appointmentId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].action").value("CANCELLED"))
+            .andExpect(jsonPath("$[0].newValues.status").value("CANCELLED"))
+            .andExpect(jsonPath("$[0].newValues.cancellationReason").doesNotExist());
+    }
+    @Test
+    void shouldRejectCancellationReasonLongerThan500Characters()
+        throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "11:00:00", "11:30:00"
+        );
+
+        String longReason = "A".repeat(501);
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/cancel",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"reason": "%s"}
+                    """.formatted(longReason)))
+            .andExpect(status().isBadRequest());
+    }
+    @Test
     void shouldCompleteConfirmedAppointment() throws Exception {
 
         String clinicId = createClinic();
@@ -516,6 +608,48 @@ class AppointmentApiIntegrationTests {
             .andExpect(jsonPath("$.status").value("COMPLETED"));
     }
 
+    @Test
+    void shouldRejectCancellationOfCompletedAppointment()
+        throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "12:00:00", "12:30:00"
+        );
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status": "CONFIRMED"}
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status": "COMPLETED"}
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/cancel",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"reason": "Late cancellation attempt"}
+                    """))
+            .andExpect(status().isBadRequest());
+    }
     @Test
     void shouldRejectInvalidAppointmentStatusTransition() throws Exception {
 
@@ -676,7 +810,7 @@ class AppointmentApiIntegrationTests {
                 appointmentId))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(2))
-            .andExpect(jsonPath("$[0].action").value("UPDATED"))
+            .andExpect(jsonPath("$[0].action").value("RESCHEDULED"))
             .andExpect(jsonPath("$[0].oldValues.appointmentDate")
                 .value("2027-05-20"))
             .andExpect(jsonPath("$[0].oldValues.startTime").value("10:00"))
@@ -686,6 +820,56 @@ class AppointmentApiIntegrationTests {
             .andExpect(jsonPath("$[0].newValues.startTime").value("11:00"))
             .andExpect(jsonPath("$[0].newValues.endTime").value("11:45"))
             .andExpect(jsonPath("$[0].newValues.status").value("SCHEDULED"))
+            .andExpect(jsonPath("$[1].action").value("CREATED"));
+    }
+    @Test
+    void shouldRecordOrdinaryAppointmentUpdateInHistory()
+        throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "10:00:00", "10:30:00"
+        );
+
+        String updateRequest = createAppointmentRequest(
+            doctorId,
+            patientId,
+            "2027-05-20",
+            "10:00:00",
+            "10:30:00"
+        )
+            .replace("Regular consultation", "Follow-up consultation")
+            .replace(
+                "Integration test appointment",
+                "Updated consultation notes"
+            );
+
+        mockMvc.perform(put(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updateRequest))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/history",
+                clinicId,
+                appointmentId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$[0].action").value("UPDATED"))
+            .andExpect(jsonPath("$[0].oldValues.reason")
+                .value("Regular consultation"))
+            .andExpect(jsonPath("$[0].newValues.reason")
+                .value("Follow-up consultation"))
+            .andExpect(jsonPath("$[0].oldValues.notes")
+                .value("Integration test appointment"))
+            .andExpect(jsonPath("$[0].newValues.notes")
+                .value("Updated consultation notes"))
             .andExpect(jsonPath("$[1].action").value("CREATED"));
     }
     @Test

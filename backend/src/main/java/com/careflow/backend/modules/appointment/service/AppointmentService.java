@@ -1,5 +1,6 @@
 package com.careflow.backend.modules.appointment.service;
 
+import com.careflow.backend.modules.appointment.dto.AppointmentCancellationRequest;
 import com.careflow.backend.modules.appointment.dto.AppointmentRequest;
 import com.careflow.backend.modules.appointment.dto.AppointmentResponse;
 import com.careflow.backend.modules.appointment.dto.AppointmentStatusUpdateRequest;
@@ -66,12 +67,13 @@ public class AppointmentService {
                 "Clinic not found with ID: " + clinicId
             ));
 
-        Doctor doctor = doctorRepository.findByIdAndClinicId(
+        Doctor doctor = doctorRepository.findByIdAndClinicIdForUpdate(
             request.doctorId(),
             clinicId
         ).orElseThrow(() -> new DoctorNotFoundException(
             "Doctor not found in this clinic with ID: " + request.doctorId()
         ));
+
 
         Patient patient = patientRepository.findByIdAndClinicId(
             request.patientId(),
@@ -141,12 +143,18 @@ public class AppointmentService {
             );
         }
 
-        Doctor doctor = doctorRepository.findByIdAndClinicId(
+        Doctor doctor = doctorRepository.findByIdAndClinicIdForUpdate(
             request.doctorId(),
             clinicId
         ).orElseThrow(() -> new DoctorNotFoundException(
             "Doctor not found in this clinic with ID: " + request.doctorId()
         ));
+        boolean rescheduled =
+            !appointment.getDoctor().getId().equals(doctor.getId()) ||
+            !appointment.getAppointmentDate().equals(request.appointmentDate()) ||
+            !appointment.getStartTime().equals(request.startTime()) ||
+            !appointment.getEndTime().equals(request.endTime());
+
 
         Patient patient = patientRepository.findByIdAndClinicId(
             request.patientId(),
@@ -188,13 +196,62 @@ public class AppointmentService {
         Appointment updatedAppointment =
             appointmentRepository.save(appointment);
 
-        appointmentHistoryService.recordUpdated(
-            updatedAppointment,
-            oldValues
-        );
+        if (rescheduled) {
+            appointmentHistoryService.recordRescheduled(
+                updatedAppointment,
+                oldValues
+            );
+        } else {
+            appointmentHistoryService.recordUpdated(
+                updatedAppointment,
+                oldValues
+            );
+        }
 
         return AppointmentMapper.toResponse(updatedAppointment);
     }
+    public AppointmentResponse cancelAppointment(
+        UUID clinicId,
+        UUID appointmentId,
+        AppointmentCancellationRequest request
+    ) {
+
+        Appointment appointment = appointmentRepository
+            .findByIdAndClinicId(appointmentId, clinicId)
+            .orElseThrow(() -> new AppointmentNotFoundException(
+                "Appointment not found with ID: " + appointmentId
+            ));
+
+        AppointmentStatus currentStatus = appointment.getStatus();
+
+        if (currentStatus != AppointmentStatus.SCHEDULED &&
+            currentStatus != AppointmentStatus.CONFIRMED) {
+
+            throw new InvalidAppointmentStatusException(
+                "Only scheduled or confirmed appointments can be cancelled."
+            );
+        }
+
+        String oldCancellationReason = appointment.getCancellationReason();
+
+        appointment.setCancellationReason(
+            request == null ? null : request.reason()
+        );
+
+        appointment.setStatus(AppointmentStatus.CANCELLED);
+
+        Appointment cancelledAppointment =
+            appointmentRepository.save(appointment);
+
+        appointmentHistoryService.recordCancelled(
+            cancelledAppointment,
+            currentStatus.name(),
+            oldCancellationReason
+        );
+
+        return AppointmentMapper.toResponse(cancelledAppointment);
+    }
+
     public AppointmentResponse updateAppointmentStatus(
         UUID clinicId,
         UUID appointmentId,

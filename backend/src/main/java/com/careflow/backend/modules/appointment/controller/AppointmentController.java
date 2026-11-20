@@ -2,6 +2,7 @@ package com.careflow.backend.modules.appointment.controller;
 
 import com.careflow.backend.modules.appointment.dto.AppointmentPageResponse;
 import com.careflow.backend.modules.appointment.dto.AppointmentRequest;
+import com.careflow.backend.modules.appointment.dto.AppointmentCancellationRequest;
 import com.careflow.backend.modules.appointment.dto.AppointmentHistoryResponse;
 import com.careflow.backend.modules.appointment.dto.AppointmentResponse;
 import com.careflow.backend.modules.appointment.dto.AppointmentStatusUpdateRequest;
@@ -113,6 +114,22 @@ public class AppointmentController {
 
         return ResponseEntity.ok(
             appointmentService.updateAppointment(
+                clinicId,
+                appointmentId,
+                request
+            )
+        );
+    }
+
+    @PatchMapping("/{appointmentId}/cancel")
+    public ResponseEntity<AppointmentResponse> cancelAppointment(
+        @PathVariable UUID clinicId,
+        @PathVariable UUID appointmentId,
+        @Valid @RequestBody(required = false) AppointmentCancellationRequest request
+    ) {
+
+        return ResponseEntity.ok(
+            appointmentService.cancelAppointment(
                 clinicId,
                 appointmentId,
                 request
