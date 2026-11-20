@@ -4,6 +4,9 @@ import com.careflow.backend.modules.clinic.dto.ApiErrorResponse;
 import com.careflow.backend.modules.doctor.exception.DoctorNotFoundException;
 import com.careflow.backend.modules.doctor.exception.DuplicateDoctorException;
 import com.careflow.backend.modules.patient.exception.PatientNotFoundException;
+import com.careflow.backend.modules.appointment.exception.AppointmentConflictException;
+import com.careflow.backend.modules.appointment.exception.AppointmentNotFoundException;
+import com.careflow.backend.modules.appointment.exception.InvalidAppointmentTimeException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -54,6 +57,19 @@ public class GlobalExceptionHandler {
             request.getRequestURI()
         );
     }
+
+    @ExceptionHandler(AppointmentNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleAppointmentNotFound(
+            AppointmentNotFoundException exception,
+            HttpServletRequest request) {
+
+        return buildResponse(
+            HttpStatus.NOT_FOUND,
+            exception.getMessage(),
+            request.getRequestURI()
+        );
+    }
+
     @ExceptionHandler(DuplicateClinicException.class)
     public ResponseEntity<ApiErrorResponse> handleDuplicateClinic(
             DuplicateClinicException exception,
@@ -73,6 +89,30 @@ public class GlobalExceptionHandler {
 
         return buildResponse(
             HttpStatus.CONFLICT,
+            exception.getMessage(),
+            request.getRequestURI()
+        );
+    }
+
+    @ExceptionHandler(AppointmentConflictException.class)
+    public ResponseEntity<ApiErrorResponse> handleAppointmentConflict(
+            AppointmentConflictException exception,
+            HttpServletRequest request) {
+
+        return buildResponse(
+            HttpStatus.CONFLICT,
+            exception.getMessage(),
+            request.getRequestURI()
+        );
+    }
+
+    @ExceptionHandler(InvalidAppointmentTimeException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidAppointmentTime(
+            InvalidAppointmentTimeException exception,
+            HttpServletRequest request) {
+
+        return buildResponse(
+            HttpStatus.BAD_REQUEST,
             exception.getMessage(),
             request.getRequestURI()
         );
