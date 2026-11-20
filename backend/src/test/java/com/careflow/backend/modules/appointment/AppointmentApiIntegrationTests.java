@@ -526,4 +526,291 @@ class AppointmentApiIntegrationTests {
                     """))
             .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void shouldUpdateAppointmentSuccessfully() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "10:00:00", "10:30:00"
+        );
+
+        mockMvc.perform(put(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createAppointmentRequest(
+                    doctorId,
+                    patientId,
+                    "2027-05-21",
+                    "11:00:00",
+                    "11:45:00"
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(appointmentId))
+            .andExpect(jsonPath("$.appointmentDate").value("2027-05-21"))
+            .andExpect(jsonPath("$.startTime").value("11:00:00"))
+            .andExpect(jsonPath("$.endTime").value("11:45:00"))
+            .andExpect(jsonPath("$.status").value("SCHEDULED"));
+    }
+
+    @Test
+    void shouldAllowUpdatingAppointmentWithoutSelfConflict()
+        throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "10:00:00", "10:30:00"
+        );
+
+        mockMvc.perform(put(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createAppointmentRequest(
+                    doctorId,
+                    patientId,
+                    "2027-05-20",
+                    "10:15:00",
+                    "10:45:00"
+                )))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.startTime").value("10:15:00"));
+    }
+
+    @Test
+    void shouldRejectOverlappingAppointmentUpdate() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientOne = createPatient(clinicId);
+        String patientTwo = createPatient(clinicId);
+
+        String appointmentOne = createAppointment(
+            clinicId, doctorId, patientOne, "10:00:00", "10:30:00"
+        );
+
+        createAppointment(
+            clinicId, doctorId, patientTwo, "11:00:00", "11:30:00"
+        );
+
+        mockMvc.perform(put(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}",
+                clinicId,
+                appointmentOne)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createAppointmentRequest(
+                    doctorId,
+                    patientOne,
+                    "2027-05-20",
+                    "11:15:00",
+                    "11:45:00"
+                )))
+            .andExpect(status().isConflict());
+    }
+
+    @Test
+    void shouldPreventCrossClinicAppointmentUpdate() throws Exception {
+
+        String clinicOne = createClinic();
+        String clinicTwo = createClinic();
+
+        String doctorId = createDoctor(clinicOne);
+        String patientId = createPatient(clinicOne);
+
+        String appointmentId = createAppointment(
+            clinicOne, doctorId, patientId, "10:00:00", "10:30:00"
+        );
+
+        mockMvc.perform(put(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}",
+                clinicTwo,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createAppointmentRequest(
+                    doctorId,
+                    patientId,
+                    "2027-05-21",
+                    "11:00:00",
+                    "11:30:00"
+                )))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldRejectDoctorFromAnotherClinicDuringUpdate()
+        throws Exception {
+
+        String clinicOne = createClinic();
+        String clinicTwo = createClinic();
+
+        String doctorOne = createDoctor(clinicOne);
+        String doctorTwo = createDoctor(clinicTwo);
+        String patientId = createPatient(clinicOne);
+
+        String appointmentId = createAppointment(
+            clinicOne, doctorOne, patientId, "10:00:00", "10:30:00"
+        );
+
+        mockMvc.perform(put(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}",
+                clinicOne,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createAppointmentRequest(
+                    doctorTwo,
+                    patientId,
+                    "2027-05-21",
+                    "11:00:00",
+                    "11:30:00"
+                )))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldRejectPatientFromAnotherClinicDuringUpdate()
+        throws Exception {
+
+        String clinicOne = createClinic();
+        String clinicTwo = createClinic();
+
+        String doctorId = createDoctor(clinicOne);
+        String patientOne = createPatient(clinicOne);
+        String patientTwo = createPatient(clinicTwo);
+
+        String appointmentId = createAppointment(
+            clinicOne, doctorId, patientOne, "10:00:00", "10:30:00"
+        );
+
+        mockMvc.perform(put(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}",
+                clinicOne,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createAppointmentRequest(
+                    doctorId,
+                    patientTwo,
+                    "2027-05-21",
+                    "11:00:00",
+                    "11:30:00"
+                )))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldRejectAppointmentUpdateWithInvalidTimeRange()
+        throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "10:00:00", "10:30:00"
+        );
+
+        mockMvc.perform(put(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createAppointmentRequest(
+                    doctorId,
+                    patientId,
+                    "2027-05-21",
+                    "12:00:00",
+                    "11:00:00"
+                )))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldRejectUpdatingCompletedAppointment() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "10:00:00", "10:30:00"
+        );
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status": "CONFIRMED"}
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status": "COMPLETED"}
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(put(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createAppointmentRequest(
+                    doctorId,
+                    patientId,
+                    "2027-05-21",
+                    "11:00:00",
+                    "11:30:00"
+                )))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldRejectUpdatingCancelledAppointment() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "10:00:00", "10:30:00"
+        );
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status": "CANCELLED"}
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(put(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createAppointmentRequest(
+                    doctorId,
+                    patientId,
+                    "2027-05-21",
+                    "11:00:00",
+                    "11:30:00"
+                )))
+            .andExpect(status().isBadRequest());
+    }
 }

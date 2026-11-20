@@ -6,6 +6,7 @@ import com.careflow.backend.modules.doctor.exception.DuplicateDoctorException;
 import com.careflow.backend.modules.patient.exception.PatientNotFoundException;
 import com.careflow.backend.modules.appointment.exception.AppointmentConflictException;
 import com.careflow.backend.modules.appointment.exception.AppointmentNotFoundException;
+import com.careflow.backend.modules.appointment.exception.AppointmentUpdateNotAllowedException;
 import com.careflow.backend.modules.appointment.exception.InvalidAppointmentTimeException;
 import com.careflow.backend.modules.appointment.exception.InvalidAppointmentStatusException;
 
@@ -123,6 +124,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidAppointmentStatusException.class)
     public ResponseEntity<ApiErrorResponse> handleInvalidAppointmentStatus(
             InvalidAppointmentStatusException exception,
+            HttpServletRequest request) {
+
+        return buildResponse(
+            HttpStatus.BAD_REQUEST,
+            exception.getMessage(),
+            request.getRequestURI()
+        );
+    }
+
+    @ExceptionHandler(AppointmentUpdateNotAllowedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAppointmentUpdateNotAllowed(
+            AppointmentUpdateNotAllowedException exception,
             HttpServletRequest request) {
 
         return buildResponse(

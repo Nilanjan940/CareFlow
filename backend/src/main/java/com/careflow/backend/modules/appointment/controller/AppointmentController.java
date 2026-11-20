@@ -64,6 +64,22 @@ public class AppointmentController {
         );
     }
 
+
+    @PutMapping("/{appointmentId}")
+    public ResponseEntity<AppointmentResponse> updateAppointment(
+        @PathVariable UUID clinicId,
+        @PathVariable UUID appointmentId,
+        @Valid @RequestBody AppointmentRequest request
+    ) {
+
+        return ResponseEntity.ok(
+            appointmentService.updateAppointment(
+                clinicId,
+                appointmentId,
+                request
+            )
+        );
+    }
     @PatchMapping("/{appointmentId}/status")
     public ResponseEntity<AppointmentResponse> updateAppointmentStatus(
         @PathVariable UUID clinicId,

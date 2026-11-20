@@ -7,6 +7,7 @@ import com.careflow.backend.modules.appointment.entity.Appointment;
 import com.careflow.backend.modules.appointment.entity.AppointmentStatus;
 import com.careflow.backend.modules.appointment.exception.AppointmentConflictException;
 import com.careflow.backend.modules.appointment.exception.AppointmentNotFoundException;
+import com.careflow.backend.modules.appointment.exception.AppointmentUpdateNotAllowedException;
 import com.careflow.backend.modules.appointment.exception.InvalidAppointmentTimeException;
 import com.careflow.backend.modules.appointment.exception.InvalidAppointmentStatusException;
 import com.careflow.backend.modules.appointment.mapper.AppointmentMapper;
@@ -108,6 +109,75 @@ public class AppointmentService {
         return AppointmentMapper.toResponse(savedAppointment);
     }
 
+    public AppointmentResponse updateAppointment(
+        UUID clinicId,
+        UUID appointmentId,
+        AppointmentRequest request
+    ) {
+
+        Appointment appointment = appointmentRepository
+            .findByIdAndClinicId(appointmentId, clinicId)
+            .orElseThrow(() -> new AppointmentNotFoundException(
+                "Appointment not found with ID: " + appointmentId
+            ));
+
+        if (appointment.getStatus() == AppointmentStatus.COMPLETED ||
+            appointment.getStatus() == AppointmentStatus.CANCELLED) {
+
+            throw new AppointmentUpdateNotAllowedException(
+                "Completed or cancelled appointments cannot be updated."
+            );
+        }
+
+        Doctor doctor = doctorRepository.findByIdAndClinicId(
+            request.doctorId(),
+            clinicId
+        ).orElseThrow(() -> new DoctorNotFoundException(
+            "Doctor not found in this clinic with ID: " + request.doctorId()
+        ));
+
+        Patient patient = patientRepository.findByIdAndClinicId(
+            request.patientId(),
+            clinicId
+        ).orElseThrow(() -> new PatientNotFoundException(
+            "Patient not found in this clinic with ID: " + request.patientId()
+        ));
+
+        if (!request.endTime().isAfter(request.startTime())) {
+            throw new InvalidAppointmentTimeException(
+                "Appointment end time must be after start time."
+            );
+        }
+
+        boolean overlapping =
+            appointmentRepository.existsOverlappingAppointmentExcludingId(
+                doctor.getId(),
+                request.appointmentDate(),
+                request.startTime(),
+                request.endTime(),
+                AppointmentStatus.CANCELLED,
+                appointmentId
+            );
+
+        if (overlapping) {
+            throw new AppointmentConflictException(
+                "The doctor already has an appointment during this time."
+            );
+        }
+
+        appointment.setDoctor(doctor);
+        appointment.setPatient(patient);
+        appointment.setAppointmentDate(request.appointmentDate());
+        appointment.setStartTime(request.startTime());
+        appointment.setEndTime(request.endTime());
+        appointment.setReason(request.reason());
+        appointment.setNotes(request.notes());
+
+        Appointment updatedAppointment =
+            appointmentRepository.save(appointment);
+
+        return AppointmentMapper.toResponse(updatedAppointment);
+    }
     public AppointmentResponse updateAppointmentStatus(
         UUID clinicId,
         UUID appointmentId,

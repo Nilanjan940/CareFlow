@@ -39,4 +39,22 @@ public interface AppointmentRepository
         @Param("endTime") LocalTime endTime,
         @Param("cancelledStatus") AppointmentStatus cancelledStatus
     );
+    @Query("""
+        SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END
+        FROM Appointment a
+        WHERE a.doctor.id = :doctorId
+          AND a.appointmentDate = :appointmentDate
+          AND a.id <> :excludedAppointmentId
+          AND a.status <> :cancelledStatus
+          AND a.startTime < :endTime
+          AND a.endTime > :startTime
+        """)
+    boolean existsOverlappingAppointmentExcludingId(
+        @Param("doctorId") UUID doctorId,
+        @Param("appointmentDate") LocalDate appointmentDate,
+        @Param("startTime") LocalTime startTime,
+        @Param("endTime") LocalTime endTime,
+        @Param("cancelledStatus") AppointmentStatus cancelledStatus,
+        @Param("excludedAppointmentId") UUID excludedAppointmentId
+    );
 }
