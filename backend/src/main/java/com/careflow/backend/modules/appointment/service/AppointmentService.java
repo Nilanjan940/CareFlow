@@ -1,6 +1,7 @@
 package com.careflow.backend.modules.appointment.service;
 
 import com.careflow.backend.modules.availability.service.AvailabilityService;
+import com.careflow.backend.modules.notification.service.NotificationSchedulingService;
 
 import com.careflow.backend.modules.appointment.dto.AppointmentCancellationRequest;
 import com.careflow.backend.modules.appointment.dto.AppointmentRequest;
@@ -45,6 +46,7 @@ public class AppointmentService {
     private final PatientRepository patientRepository;
     private final AppointmentHistoryService appointmentHistoryService;
     private final AvailabilityService availabilityService;
+    private final NotificationSchedulingService notificationSchedulingService;
 
     public AppointmentService(
         AppointmentRepository appointmentRepository,
@@ -52,7 +54,8 @@ public class AppointmentService {
         DoctorRepository doctorRepository,
         PatientRepository patientRepository,
         AppointmentHistoryService appointmentHistoryService,
-        AvailabilityService availabilityService
+        AvailabilityService availabilityService,
+        NotificationSchedulingService notificationSchedulingService
     ) {
         this.appointmentRepository = appointmentRepository;
         this.clinicRepository = clinicRepository;
@@ -60,6 +63,7 @@ public class AppointmentService {
         this.patientRepository = patientRepository;
         this.appointmentHistoryService = appointmentHistoryService;
         this.availabilityService = availabilityService;
+        this.notificationSchedulingService = notificationSchedulingService;
     }
 
     public AppointmentResponse createAppointment(
@@ -129,6 +133,7 @@ public class AppointmentService {
         Appointment savedAppointment = appointmentRepository.save(appointment);
 
         appointmentHistoryService.recordCreated(savedAppointment);
+        notificationSchedulingService.scheduleAppointmentReminders(savedAppointment);
 
         return AppointmentMapper.toResponse(savedAppointment);
     }
@@ -175,6 +180,8 @@ public class AppointmentService {
         ).orElseThrow(() -> new PatientNotFoundException(
             "Patient not found in this clinic with ID: " + request.patientId()
         ));
+        boolean patientChanged =
+            !appointment.getPatient().getId().equals(patient.getId());
 
         if (!request.endTime().isAfter(request.startTime())) {
             throw new InvalidAppointmentTimeException(
@@ -229,6 +236,10 @@ public class AppointmentService {
             );
         }
 
+        if (rescheduled || patientChanged) {
+            notificationSchedulingService.rescheduleAppointmentReminders(updatedAppointment);
+        }
+
         return AppointmentMapper.toResponse(updatedAppointment);
     }
     public AppointmentResponse cancelAppointment(
@@ -269,6 +280,8 @@ public class AppointmentService {
             currentStatus.name(),
             oldCancellationReason
         );
+
+        notificationSchedulingService.cancelAppointmentReminders(cancelledAppointment);
 
         return AppointmentMapper.toResponse(cancelledAppointment);
     }
@@ -317,6 +330,11 @@ public class AppointmentService {
             currentStatus.name(),
             requestedStatus.name()
         );
+
+        if (requestedStatus == AppointmentStatus.CANCELLED ||
+            requestedStatus == AppointmentStatus.COMPLETED) {
+            notificationSchedulingService.cancelAppointmentReminders(updatedAppointment);
+        }
 
         return AppointmentMapper.toResponse(updatedAppointment);
     }
