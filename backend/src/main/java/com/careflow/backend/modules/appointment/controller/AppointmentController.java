@@ -2,10 +2,12 @@ package com.careflow.backend.modules.appointment.controller;
 
 import com.careflow.backend.modules.appointment.dto.AppointmentPageResponse;
 import com.careflow.backend.modules.appointment.dto.AppointmentRequest;
+import com.careflow.backend.modules.appointment.dto.AppointmentHistoryResponse;
 import com.careflow.backend.modules.appointment.dto.AppointmentResponse;
 import com.careflow.backend.modules.appointment.dto.AppointmentStatusUpdateRequest;
 import com.careflow.backend.modules.appointment.entity.AppointmentStatus;
 import com.careflow.backend.modules.appointment.service.AppointmentService;
+import com.careflow.backend.modules.appointment.service.AppointmentHistoryService;
 
 import jakarta.validation.Valid;
 
@@ -18,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -25,11 +28,14 @@ import java.util.UUID;
 public class AppointmentController {
 
     private final AppointmentService appointmentService;
+    private final AppointmentHistoryService appointmentHistoryService;
 
     public AppointmentController(
-        AppointmentService appointmentService
+        AppointmentService appointmentService,
+        AppointmentHistoryService appointmentHistoryService
     ) {
         this.appointmentService = appointmentService;
+        this.appointmentHistoryService = appointmentHistoryService;
     }
 
     @PostMapping
@@ -126,6 +132,19 @@ public class AppointmentController {
                 clinicId,
                 appointmentId,
                 request
+            )
+        );
+    }
+    @GetMapping("/{appointmentId}/history")
+    public ResponseEntity<List<AppointmentHistoryResponse>> getAppointmentHistory(
+        @PathVariable UUID clinicId,
+        @PathVariable UUID appointmentId
+    ) {
+
+        return ResponseEntity.ok(
+            appointmentHistoryService.getAppointmentHistory(
+                clinicId,
+                appointmentId
             )
         );
     }

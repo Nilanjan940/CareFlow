@@ -177,6 +177,48 @@ class AppointmentApiIntegrationTests {
     }
 
     @Test
+    void shouldRecordAppointmentCreationInHistory() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String response = mockMvc.perform(post(
+                "/api/clinics/{clinicId}/appointments", clinicId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createAppointmentRequest(
+                    doctorId,
+                    patientId,
+                    "2027-05-20",
+                    "10:00:00",
+                    "10:30:00"
+                )))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String appointmentId = extractId(response);
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/history",
+                clinicId,
+                appointmentId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].action").value("CREATED"))
+            .andExpect(jsonPath("$[0].description")
+                .value("Appointment created."))
+            .andExpect(jsonPath("$[0].oldValues").doesNotExist())
+            .andExpect(jsonPath("$[0].newValues.doctorId").value(doctorId))
+            .andExpect(jsonPath("$[0].newValues.patientId").value(patientId))
+            .andExpect(jsonPath("$[0].newValues.appointmentDate")
+                .value("2027-05-20"))
+            .andExpect(jsonPath("$[0].newValues.startTime").value("10:00"))
+            .andExpect(jsonPath("$[0].newValues.endTime").value("10:30"))
+            .andExpect(jsonPath("$[0].newValues.status").value("SCHEDULED"));
+    }
+
+    @Test
     void shouldRetrieveAppointmentById() throws Exception {
 
         String clinicId = createClinic();
@@ -371,6 +413,47 @@ class AppointmentApiIntegrationTests {
     }
 
     @Test
+    void shouldRecordAppointmentStatusChangeInHistory() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId,
+            doctorId,
+            patientId,
+            "10:00:00",
+            "10:30:00"
+        );
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "status": "CONFIRMED"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("CONFIRMED"));
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/history",
+                clinicId,
+                appointmentId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$[0].action").value("STATUS_CHANGED"))
+            .andExpect(jsonPath("$[0].description")
+                .value("Appointment status changed from SCHEDULED to CONFIRMED."))
+            .andExpect(jsonPath("$[0].oldValues.status").value("SCHEDULED"))
+            .andExpect(jsonPath("$[0].newValues.status").value("CONFIRMED"))
+            .andExpect(jsonPath("$[1].action").value("CREATED"));
+    }
+    @Test
     void shouldCancelScheduledAppointment() throws Exception {
 
         String clinicId = createClinic();
@@ -559,6 +642,53 @@ class AppointmentApiIntegrationTests {
     }
 
     @Test
+    void shouldRecordAppointmentUpdateInHistory() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId,
+            doctorId,
+            patientId,
+            "10:00:00",
+            "10:30:00"
+        );
+
+        mockMvc.perform(put(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}",
+                clinicId,
+                appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createAppointmentRequest(
+                    doctorId,
+                    patientId,
+                    "2027-05-21",
+                    "11:00:00",
+                    "11:45:00"
+                )))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/history",
+                clinicId,
+                appointmentId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$[0].action").value("UPDATED"))
+            .andExpect(jsonPath("$[0].oldValues.appointmentDate")
+                .value("2027-05-20"))
+            .andExpect(jsonPath("$[0].oldValues.startTime").value("10:00"))
+            .andExpect(jsonPath("$[0].oldValues.endTime").value("10:30"))
+            .andExpect(jsonPath("$[0].newValues.appointmentDate")
+                .value("2027-05-21"))
+            .andExpect(jsonPath("$[0].newValues.startTime").value("11:00"))
+            .andExpect(jsonPath("$[0].newValues.endTime").value("11:45"))
+            .andExpect(jsonPath("$[0].newValues.status").value("SCHEDULED"))
+            .andExpect(jsonPath("$[1].action").value("CREATED"));
+    }
+    @Test
     void shouldAllowUpdatingAppointmentWithoutSelfConflict()
         throws Exception {
 
@@ -645,6 +775,44 @@ class AppointmentApiIntegrationTests {
             .andExpect(status().isNotFound());
     }
 
+    @Test
+    void shouldReturnNotFoundForMissingAppointmentHistory() throws Exception {
+
+        String clinicId = createClinic();
+
+        String missingAppointmentId =
+            "00000000-0000-0000-0000-000000000001";
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/history",
+                clinicId,
+                missingAppointmentId))
+            .andExpect(status().isNotFound());
+    }
+    @Test
+    void shouldNotRetrieveAppointmentHistoryFromAnotherClinic()
+        throws Exception {
+
+        String clinicId = createClinic();
+        String anotherClinicId = createClinic();
+
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId,
+            doctorId,
+            patientId,
+            "10:00:00",
+            "10:30:00"
+        );
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/history",
+                anotherClinicId,
+                appointmentId))
+            .andExpect(status().isNotFound());
+    }
     @Test
     void shouldRejectDoctorFromAnotherClinicDuringUpdate()
         throws Exception {

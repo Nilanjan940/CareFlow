@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -39,17 +40,20 @@ public class AppointmentService {
     private final ClinicRepository clinicRepository;
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
+    private final AppointmentHistoryService appointmentHistoryService;
 
     public AppointmentService(
         AppointmentRepository appointmentRepository,
         ClinicRepository clinicRepository,
         DoctorRepository doctorRepository,
-        PatientRepository patientRepository
+        PatientRepository patientRepository,
+        AppointmentHistoryService appointmentHistoryService
     ) {
         this.appointmentRepository = appointmentRepository;
         this.clinicRepository = clinicRepository;
         this.doctorRepository = doctorRepository;
         this.patientRepository = patientRepository;
+        this.appointmentHistoryService = appointmentHistoryService;
     }
 
     public AppointmentResponse createAppointment(
@@ -109,6 +113,8 @@ public class AppointmentService {
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
 
+        appointmentHistoryService.recordCreated(savedAppointment);
+
         return AppointmentMapper.toResponse(savedAppointment);
     }
 
@@ -123,6 +129,9 @@ public class AppointmentService {
             .orElseThrow(() -> new AppointmentNotFoundException(
                 "Appointment not found with ID: " + appointmentId
             ));
+
+        Map<String, Object> oldValues =
+            appointmentHistoryService.createSnapshot(appointment);
 
         if (appointment.getStatus() == AppointmentStatus.COMPLETED ||
             appointment.getStatus() == AppointmentStatus.CANCELLED) {
@@ -179,6 +188,11 @@ public class AppointmentService {
         Appointment updatedAppointment =
             appointmentRepository.save(appointment);
 
+        appointmentHistoryService.recordUpdated(
+            updatedAppointment,
+            oldValues
+        );
+
         return AppointmentMapper.toResponse(updatedAppointment);
     }
     public AppointmentResponse updateAppointmentStatus(
@@ -219,6 +233,12 @@ public class AppointmentService {
 
         Appointment updatedAppointment =
             appointmentRepository.save(appointment);
+
+        appointmentHistoryService.recordStatusChanged(
+            updatedAppointment,
+            currentStatus.name(),
+            requestedStatus.name()
+        );
 
         return AppointmentMapper.toResponse(updatedAppointment);
     }
