@@ -7,6 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -58,21 +61,33 @@ public interface AppointmentRepository
         @Param("excludedAppointmentId") UUID excludedAppointmentId
     );
 
-    @Query("""
-        SELECT a
-        FROM Appointment a
-        WHERE a.clinic.id = :clinicId
-          AND (:appointmentDate IS NULL OR a.appointmentDate = :appointmentDate)
-          AND (:status IS NULL OR a.status = :status)
-          AND (:doctorId IS NULL OR a.doctor.id = :doctorId)
-          AND (:patientId IS NULL OR a.patient.id = :patientId)
-        ORDER BY a.appointmentDate ASC, a.startTime ASC
-    """)
-    List<Appointment> searchAppointments(
+
+    @Query(
+        value = """
+            SELECT a
+            FROM Appointment a
+            WHERE a.clinic.id = :clinicId
+              AND (:appointmentDate IS NULL OR a.appointmentDate = :appointmentDate)
+              AND (:status IS NULL OR a.status = :status)
+              AND (:doctorId IS NULL OR a.doctor.id = :doctorId)
+              AND (:patientId IS NULL OR a.patient.id = :patientId)
+            """,
+        countQuery = """
+            SELECT COUNT(a)
+            FROM Appointment a
+            WHERE a.clinic.id = :clinicId
+              AND (:appointmentDate IS NULL OR a.appointmentDate = :appointmentDate)
+              AND (:status IS NULL OR a.status = :status)
+              AND (:doctorId IS NULL OR a.doctor.id = :doctorId)
+              AND (:patientId IS NULL OR a.patient.id = :patientId)
+            """
+    )
+    Page<Appointment> searchAppointments(
         @Param("clinicId") UUID clinicId,
         @Param("appointmentDate") LocalDate appointmentDate,
         @Param("status") AppointmentStatus status,
         @Param("doctorId") UUID doctorId,
-        @Param("patientId") UUID patientId
+        @Param("patientId") UUID patientId,
+        Pageable pageable
     );
 }

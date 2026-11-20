@@ -22,6 +22,8 @@ import com.careflow.backend.modules.patient.entity.Patient;
 import com.careflow.backend.modules.patient.exception.PatientNotFoundException;
 import com.careflow.backend.modules.patient.repository.PatientRepository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -222,12 +224,13 @@ public class AppointmentService {
     }
 
     @Transactional(readOnly = true)
-    public List<AppointmentResponse> searchAppointments(
+    public Page<AppointmentResponse> searchAppointments(
         UUID clinicId,
         LocalDate appointmentDate,
         AppointmentStatus status,
         UUID doctorId,
-        UUID patientId
+        UUID patientId,
+        Pageable pageable
     ) {
 
         if (!clinicRepository.existsById(clinicId)) {
@@ -241,11 +244,9 @@ public class AppointmentService {
             appointmentDate,
             status,
             doctorId,
-            patientId
-        )
-            .stream()
-            .map(AppointmentMapper::toResponse)
-            .toList();
+            patientId,
+            pageable
+        ).map(AppointmentMapper::toResponse);
     }
 
     @Transactional(readOnly = true)

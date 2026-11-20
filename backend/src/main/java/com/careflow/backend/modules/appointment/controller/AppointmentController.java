@@ -1,20 +1,23 @@
 package com.careflow.backend.modules.appointment.controller;
 
+import com.careflow.backend.modules.appointment.dto.AppointmentPageResponse;
 import com.careflow.backend.modules.appointment.dto.AppointmentRequest;
 import com.careflow.backend.modules.appointment.dto.AppointmentResponse;
 import com.careflow.backend.modules.appointment.dto.AppointmentStatusUpdateRequest;
+import com.careflow.backend.modules.appointment.entity.AppointmentStatus;
 import com.careflow.backend.modules.appointment.service.AppointmentService;
 
 import jakarta.validation.Valid;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.careflow.backend.modules.appointment.entity.AppointmentStatus;
-
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -44,23 +47,41 @@ public class AppointmentController {
     }
 
     @GetMapping
-    public ResponseEntity<List<AppointmentResponse>> getAllAppointments(
+    public ResponseEntity<AppointmentPageResponse> getAllAppointments(
         @PathVariable UUID clinicId,
         @RequestParam(required = false) LocalDate date,
         @RequestParam(required = false) AppointmentStatus status,
         @RequestParam(required = false) UUID doctorId,
-        @RequestParam(required = false) UUID patientId
+        @RequestParam(required = false) UUID patientId,
+        @PageableDefault(
+            page = 0,
+            size = 10,
+            sort = {"appointmentDate", "startTime"},
+            direction = Sort.Direction.ASC
+        ) Pageable pageable
     ) {
 
-        return ResponseEntity.ok(
+        Page<AppointmentResponse> result =
             appointmentService.searchAppointments(
                 clinicId,
                 date,
                 status,
                 doctorId,
-                patientId
-            )
+                patientId,
+                pageable
+            );
+
+        AppointmentPageResponse response = new AppointmentPageResponse(
+            result.getContent(),
+            result.getNumber(),
+            result.getSize(),
+            result.getTotalElements(),
+            result.getTotalPages(),
+            result.isFirst(),
+            result.isLast()
         );
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{appointmentId}")
@@ -77,7 +98,6 @@ public class AppointmentController {
         );
     }
 
-
     @PutMapping("/{appointmentId}")
     public ResponseEntity<AppointmentResponse> updateAppointment(
         @PathVariable UUID clinicId,
@@ -93,6 +113,7 @@ public class AppointmentController {
             )
         );
     }
+
     @PatchMapping("/{appointmentId}/status")
     public ResponseEntity<AppointmentResponse> updateAppointmentStatus(
         @PathVariable UUID clinicId,

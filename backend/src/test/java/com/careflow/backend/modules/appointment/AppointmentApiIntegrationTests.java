@@ -220,8 +220,8 @@ class AppointmentApiIntegrationTests {
         mockMvc.perform(get(
                 "/api/clinics/{clinicId}/appointments", clinicId))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$").isArray())
-            .andExpect(jsonPath("$.length()").value(2));
+            .andExpect(jsonPath("$.content").isArray())
+            .andExpect(jsonPath("$.content.length()").value(2));
     }
 
     @Test
@@ -836,8 +836,8 @@ class AppointmentApiIntegrationTests {
                 "/api/clinics/{clinicId}/appointments", clinicId)
                 .param("date", "2027-05-21"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].appointmentDate").value("2027-05-21"));
+            .andExpect(jsonPath("$.content.length()").value(1))
+            .andExpect(jsonPath("$.content[0].appointmentDate").value("2027-05-21"));
     }
 
     @Test
@@ -864,8 +864,8 @@ class AppointmentApiIntegrationTests {
                 "/api/clinics/{clinicId}/appointments", clinicId)
                 .param("status", "CONFIRMED"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].status").value("CONFIRMED"));
+            .andExpect(jsonPath("$.content.length()").value(1))
+            .andExpect(jsonPath("$.content[0].status").value("CONFIRMED"));
     }
 
     @Test
@@ -888,8 +888,8 @@ class AppointmentApiIntegrationTests {
                 "/api/clinics/{clinicId}/appointments", clinicId)
                 .param("doctorId", doctorOne))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].doctorId").value(doctorOne));
+            .andExpect(jsonPath("$.content.length()").value(1))
+            .andExpect(jsonPath("$.content[0].doctorId").value(doctorOne));
     }
 
     @Test
@@ -912,8 +912,8 @@ class AppointmentApiIntegrationTests {
                 "/api/clinics/{clinicId}/appointments", clinicId)
                 .param("patientId", patientOne))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].patientId").value(patientOne));
+            .andExpect(jsonPath("$.content.length()").value(1))
+            .andExpect(jsonPath("$.content[0].patientId").value(patientOne));
     }
 
     @Test
@@ -949,8 +949,8 @@ class AppointmentApiIntegrationTests {
                 .param("doctorId", doctorOne)
                 .param("patientId", patientOne))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].id").value(appointmentId));
+            .andExpect(jsonPath("$.content.length()").value(1))
+            .andExpect(jsonPath("$.content[0].id").value(appointmentId));
     }
 
     @Test
@@ -963,8 +963,8 @@ class AppointmentApiIntegrationTests {
                 "/api/clinics/{clinicId}/appointments", clinicId)
                 .param("date", "2027-05-21"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$").isArray())
-            .andExpect(jsonPath("$.length()").value(0));
+            .andExpect(jsonPath("$.content").isArray())
+            .andExpect(jsonPath("$.content.length()").value(0));
     }
 
     @Test
@@ -984,7 +984,206 @@ class AppointmentApiIntegrationTests {
                 "/api/clinics/{clinicId}/appointments", clinicTwo)
                 .param("date", "2027-05-20"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.length()").value(0));
+            .andExpect(jsonPath("$.content.length()").value(0));
+    }
+
+    @Test
+    void shouldReturnDefaultAppointmentPageWithMetadata() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String[] startTimes = {
+            "08:00:00", "08:30:00",
+            "09:00:00", "09:30:00",
+            "10:00:00", "10:30:00",
+            "11:00:00", "11:30:00",
+            "12:00:00", "12:30:00",
+            "13:00:00", "13:30:00"
+        };
+
+        String[] endTimes = {
+            "08:30:00", "09:00:00",
+            "09:30:00", "10:00:00",
+            "10:30:00", "11:00:00",
+            "11:30:00", "12:00:00",
+            "12:30:00", "13:00:00",
+            "13:30:00", "14:00:00"
+        };
+
+        for (int i = 0; i < startTimes.length; i++) {
+            createAppointment(
+                clinicId,
+                doctorId,
+                patientId,
+                startTimes[i],
+                endTimes[i]
+            );
+        }
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments", clinicId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.page").value(0))
+            .andExpect(jsonPath("$.size").value(10))
+            .andExpect(jsonPath("$.totalElements").value(12))
+            .andExpect(jsonPath("$.totalPages").value(2))
+            .andExpect(jsonPath("$.first").value(true))
+            .andExpect(jsonPath("$.last").value(false))
+            .andExpect(jsonPath("$.content.length()").value(10));
+    }
+
+    @Test
+    void shouldReturnRequestedAppointmentPage() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String[] startTimes = {
+            "08:00:00", "08:30:00",
+            "09:00:00", "09:30:00",
+            "10:00:00", "10:30:00",
+            "11:00:00", "11:30:00",
+            "12:00:00", "12:30:00",
+            "13:00:00", "13:30:00"
+        };
+
+        String[] endTimes = {
+            "08:30:00", "09:00:00",
+            "09:30:00", "10:00:00",
+            "10:30:00", "11:00:00",
+            "11:30:00", "12:00:00",
+            "12:30:00", "13:00:00",
+            "13:30:00", "14:00:00"
+        };
+
+        for (int i = 0; i < startTimes.length; i++) {
+            createAppointment(
+                clinicId,
+                doctorId,
+                patientId,
+                startTimes[i],
+                endTimes[i]
+            );
+        }
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments", clinicId)
+                .param("page", "1")
+                .param("size", "5"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.page").value(1))
+            .andExpect(jsonPath("$.size").value(5))
+            .andExpect(jsonPath("$.totalElements").value(12))
+            .andExpect(jsonPath("$.totalPages").value(3))
+            .andExpect(jsonPath("$.first").value(false))
+            .andExpect(jsonPath("$.last").value(false))
+            .andExpect(jsonPath("$.content.length()").value(5));
+    }
+
+    @Test
+    void shouldSortAppointmentsByDateAndStartTime() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String[] dates = {
+            "2027-05-21",
+            "2027-05-20",
+            "2027-05-20"
+        };
+
+        String[] startTimes = {
+            "10:00:00",
+            "11:00:00",
+            "09:00:00"
+        };
+
+        String[] endTimes = {
+            "10:30:00",
+            "11:30:00",
+            "09:30:00"
+        };
+
+        for (int i = 0; i < dates.length; i++) {
+            mockMvc.perform(post(
+                    "/api/clinics/{clinicId}/appointments", clinicId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(createAppointmentRequest(
+                        doctorId,
+                        patientId,
+                        dates[i],
+                        startTimes[i],
+                        endTimes[i]
+                    )))
+                .andExpect(status().isCreated());
+        }
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments", clinicId)
+                .param("sort", "appointmentDate,asc")
+                .param("sort", "startTime,asc"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content.length()").value(3))
+            .andExpect(jsonPath("$.content[0].appointmentDate")
+                .value("2027-05-20"))
+            .andExpect(jsonPath("$.content[0].startTime")
+                .value("09:00:00"))
+            .andExpect(jsonPath("$.content[1].startTime")
+                .value("11:00:00"))
+            .andExpect(jsonPath("$.content[2].appointmentDate")
+                .value("2027-05-21"));
+    }
+
+    @Test
+    void shouldPreserveFiltersWhenUsingAppointmentPagination()
+        throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId,
+            doctorId,
+            patientId,
+            "10:00:00",
+            "10:30:00"
+        );
+
+        createAppointment(
+            clinicId,
+            doctorId,
+            patientId,
+            "10:30:00",
+            "11:00:00"
+        );
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId, appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status": "CONFIRMED"}
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments", clinicId)
+                .param("status", "CONFIRMED")
+                .param("page", "0")
+                .param("size", "1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.page").value(0))
+            .andExpect(jsonPath("$.size").value(1))
+            .andExpect(jsonPath("$.totalElements").value(1))
+            .andExpect(jsonPath("$.totalPages").value(1))
+            .andExpect(jsonPath("$.content.length()").value(1))
+            .andExpect(jsonPath("$.content[0].id").value(appointmentId))
+            .andExpect(jsonPath("$.content[0].status").value("CONFIRMED"));
     }
 
 }
