@@ -1,5 +1,7 @@
 package com.careflow.backend.modules.appointment.service;
 
+import com.careflow.backend.modules.availability.service.AvailabilityService;
+
 import com.careflow.backend.modules.appointment.dto.AppointmentCancellationRequest;
 import com.careflow.backend.modules.appointment.dto.AppointmentRequest;
 import com.careflow.backend.modules.appointment.dto.AppointmentResponse;
@@ -42,19 +44,22 @@ public class AppointmentService {
     private final DoctorRepository doctorRepository;
     private final PatientRepository patientRepository;
     private final AppointmentHistoryService appointmentHistoryService;
+    private final AvailabilityService availabilityService;
 
     public AppointmentService(
         AppointmentRepository appointmentRepository,
         ClinicRepository clinicRepository,
         DoctorRepository doctorRepository,
         PatientRepository patientRepository,
-        AppointmentHistoryService appointmentHistoryService
+        AppointmentHistoryService appointmentHistoryService,
+        AvailabilityService availabilityService
     ) {
         this.appointmentRepository = appointmentRepository;
         this.clinicRepository = clinicRepository;
         this.doctorRepository = doctorRepository;
         this.patientRepository = patientRepository;
         this.appointmentHistoryService = appointmentHistoryService;
+        this.availabilityService = availabilityService;
     }
 
     public AppointmentResponse createAppointment(
@@ -87,6 +92,14 @@ public class AppointmentService {
                 "Appointment end time must be after start time."
             );
         }
+
+        availabilityService.validateAppointmentAvailability(
+            clinicId,
+            doctor.getId(),
+            request.appointmentDate(),
+            request.startTime(),
+            request.endTime()
+        );
 
         boolean overlapping = appointmentRepository.existsOverlappingAppointment(
             doctor.getId(),
@@ -168,6 +181,14 @@ public class AppointmentService {
                 "Appointment end time must be after start time."
             );
         }
+
+        availabilityService.validateAppointmentAvailability(
+            clinicId,
+            doctor.getId(),
+            request.appointmentDate(),
+            request.startTime(),
+            request.endTime()
+        );
 
         boolean overlapping =
             appointmentRepository.existsOverlappingAppointmentExcludingId(

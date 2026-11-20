@@ -1,10 +1,14 @@
 package com.careflow.backend.modules.clinic.exception;
 
 import com.careflow.backend.modules.clinic.dto.ApiErrorResponse;
+import com.careflow.backend.modules.availability.exception.AvailabilityConflictException;
+import com.careflow.backend.modules.availability.exception.AvailabilitySessionNotFoundException;
+import com.careflow.backend.modules.availability.exception.InvalidAvailabilitySessionException;
 import com.careflow.backend.modules.doctor.exception.DoctorNotFoundException;
 import com.careflow.backend.modules.doctor.exception.DuplicateDoctorException;
 import com.careflow.backend.modules.patient.exception.PatientNotFoundException;
 import com.careflow.backend.modules.appointment.exception.AppointmentConflictException;
+import com.careflow.backend.modules.appointment.exception.AppointmentOutsideAvailabilityException;
 import com.careflow.backend.modules.appointment.exception.AppointmentNotFoundException;
 import com.careflow.backend.modules.appointment.exception.AppointmentUpdateNotAllowedException;
 import com.careflow.backend.modules.appointment.exception.InvalidAppointmentTimeException;
@@ -102,6 +106,54 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AppointmentConflictException.class)
     public ResponseEntity<ApiErrorResponse> handleAppointmentConflict(
             AppointmentConflictException exception,
+            HttpServletRequest request) {
+
+        return buildResponse(
+            HttpStatus.CONFLICT,
+            exception.getMessage(),
+            request.getRequestURI()
+        );
+    }
+
+
+    @ExceptionHandler(AvailabilityConflictException.class)
+    public ResponseEntity<ApiErrorResponse> handleAvailabilityConflict(
+            AvailabilityConflictException exception,
+            HttpServletRequest request) {
+
+        return buildResponse(
+            HttpStatus.CONFLICT,
+            exception.getMessage(),
+            request.getRequestURI()
+        );
+    }
+
+    @ExceptionHandler(AvailabilitySessionNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleAvailabilitySessionNotFound(
+            AvailabilitySessionNotFoundException exception,
+            HttpServletRequest request) {
+
+        return buildResponse(
+            HttpStatus.NOT_FOUND,
+            exception.getMessage(),
+            request.getRequestURI()
+        );
+    }
+
+    @ExceptionHandler(InvalidAvailabilitySessionException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidAvailabilitySession(
+            InvalidAvailabilitySessionException exception,
+            HttpServletRequest request) {
+
+        return buildResponse(
+            HttpStatus.BAD_REQUEST,
+            exception.getMessage(),
+            request.getRequestURI()
+        );
+    }
+    @ExceptionHandler(AppointmentOutsideAvailabilityException.class)
+    public ResponseEntity<ApiErrorResponse> handleAppointmentOutsideAvailability(
+            AppointmentOutsideAvailabilityException exception,
             HttpServletRequest request) {
 
         return buildResponse(
