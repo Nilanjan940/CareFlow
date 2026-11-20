@@ -25,6 +25,7 @@ import com.careflow.backend.modules.patient.repository.PatientRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -219,6 +220,34 @@ public class AppointmentService {
 
         return AppointmentMapper.toResponse(updatedAppointment);
     }
+
+    @Transactional(readOnly = true)
+    public List<AppointmentResponse> searchAppointments(
+        UUID clinicId,
+        LocalDate appointmentDate,
+        AppointmentStatus status,
+        UUID doctorId,
+        UUID patientId
+    ) {
+
+        if (!clinicRepository.existsById(clinicId)) {
+            throw new ClinicNotFoundException(
+                "Clinic not found with ID: " + clinicId
+            );
+        }
+
+        return appointmentRepository.searchAppointments(
+            clinicId,
+            appointmentDate,
+            status,
+            doctorId,
+            patientId
+        )
+            .stream()
+            .map(AppointmentMapper::toResponse)
+            .toList();
+    }
+
     @Transactional(readOnly = true)
     public List<AppointmentResponse> getAllAppointments(UUID clinicId) {
 

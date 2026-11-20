@@ -813,4 +813,178 @@ class AppointmentApiIntegrationTests {
                 )))
             .andExpect(status().isBadRequest());
     }
+
+    
+    @Test
+    void shouldFilterAppointmentsByDate() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String request = createAppointmentRequest(
+            doctorId, patientId, "2027-05-21", "10:00:00", "10:30:00"
+        );
+
+        mockMvc.perform(post(
+                "/api/clinics/{clinicId}/appointments", clinicId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(request))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments", clinicId)
+                .param("date", "2027-05-21"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].appointmentDate").value("2027-05-21"));
+    }
+
+    @Test
+    void shouldFilterAppointmentsByStatus() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorId, patientId, "10:00:00", "10:30:00"
+        );
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId, appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status": "CONFIRMED"}
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments", clinicId)
+                .param("status", "CONFIRMED"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].status").value("CONFIRMED"));
+    }
+
+    @Test
+    void shouldFilterAppointmentsByDoctor() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorOne = createDoctor(clinicId);
+        String doctorTwo = createDoctor(clinicId);
+        String patientId = createPatient(clinicId);
+
+        createAppointment(
+            clinicId, doctorOne, patientId, "10:00:00", "10:30:00"
+        );
+
+        createAppointment(
+            clinicId, doctorTwo, patientId, "10:00:00", "10:30:00"
+        );
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments", clinicId)
+                .param("doctorId", doctorOne))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].doctorId").value(doctorOne));
+    }
+
+    @Test
+    void shouldFilterAppointmentsByPatient() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorId = createDoctor(clinicId);
+        String patientOne = createPatient(clinicId);
+        String patientTwo = createPatient(clinicId);
+
+        createAppointment(
+            clinicId, doctorId, patientOne, "10:00:00", "10:30:00"
+        );
+
+        createAppointment(
+            clinicId, doctorId, patientTwo, "10:30:00", "11:00:00"
+        );
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments", clinicId)
+                .param("patientId", patientOne))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].patientId").value(patientOne));
+    }
+
+    @Test
+    void shouldCombineMultipleAppointmentFilters() throws Exception {
+
+        String clinicId = createClinic();
+        String doctorOne = createDoctor(clinicId);
+        String doctorTwo = createDoctor(clinicId);
+        String patientOne = createPatient(clinicId);
+        String patientTwo = createPatient(clinicId);
+
+        String appointmentId = createAppointment(
+            clinicId, doctorOne, patientOne, "10:00:00", "10:30:00"
+        );
+
+        createAppointment(
+            clinicId, doctorTwo, patientTwo, "10:30:00", "11:00:00"
+        );
+
+        mockMvc.perform(patch(
+                "/api/clinics/{clinicId}/appointments/{appointmentId}/status",
+                clinicId, appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"status": "CONFIRMED"}
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments", clinicId)
+                .param("date", "2027-05-20")
+                .param("status", "CONFIRMED")
+                .param("doctorId", doctorOne)
+                .param("patientId", patientOne))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].id").value(appointmentId));
+    }
+
+    @Test
+    void shouldReturnEmptyListWhenNoAppointmentsMatchFilters()
+        throws Exception {
+
+        String clinicId = createClinic();
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments", clinicId)
+                .param("date", "2027-05-21"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$").isArray())
+            .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void shouldPreventCrossClinicAppointmentSearch() throws Exception {
+
+        String clinicOne = createClinic();
+        String clinicTwo = createClinic();
+
+        String doctorId = createDoctor(clinicOne);
+        String patientId = createPatient(clinicOne);
+
+        createAppointment(
+            clinicOne, doctorId, patientId, "10:00:00", "10:30:00"
+        );
+
+        mockMvc.perform(get(
+                "/api/clinics/{clinicId}/appointments", clinicTwo)
+                .param("date", "2027-05-20"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(0));
+    }
+
 }

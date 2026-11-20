@@ -11,6 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.careflow.backend.modules.appointment.entity.AppointmentStatus;
+
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,11 +45,21 @@ public class AppointmentController {
 
     @GetMapping
     public ResponseEntity<List<AppointmentResponse>> getAllAppointments(
-        @PathVariable UUID clinicId
+        @PathVariable UUID clinicId,
+        @RequestParam(required = false) LocalDate date,
+        @RequestParam(required = false) AppointmentStatus status,
+        @RequestParam(required = false) UUID doctorId,
+        @RequestParam(required = false) UUID patientId
     ) {
 
         return ResponseEntity.ok(
-            appointmentService.getAllAppointments(clinicId)
+            appointmentService.searchAppointments(
+                clinicId,
+                date,
+                status,
+                doctorId,
+                patientId
+            )
         );
     }
 
