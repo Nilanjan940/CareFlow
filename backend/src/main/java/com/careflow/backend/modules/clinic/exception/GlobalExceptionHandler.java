@@ -10,6 +10,9 @@ import com.careflow.backend.modules.appointment.exception.AppointmentUpdateNotAl
 import com.careflow.backend.modules.appointment.exception.InvalidAppointmentTimeException;
 import com.careflow.backend.modules.appointment.exception.InvalidAppointmentStatusException;
 
+import com.careflow.backend.modules.queue.exception.QueueEntryNotFoundException;
+import com.careflow.backend.modules.queue.exception.InvalidQueueStatusException;
+import com.careflow.backend.modules.queue.exception.InvalidQueueCheckInException;
 import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.http.HttpStatus;
@@ -136,6 +139,41 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AppointmentUpdateNotAllowedException.class)
     public ResponseEntity<ApiErrorResponse> handleAppointmentUpdateNotAllowed(
             AppointmentUpdateNotAllowedException exception,
+            HttpServletRequest request) {
+
+        return buildResponse(
+            HttpStatus.BAD_REQUEST,
+            exception.getMessage(),
+            request.getRequestURI()
+        );
+    }
+    @ExceptionHandler(QueueEntryNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleQueueEntryNotFound(
+            QueueEntryNotFoundException exception,
+            HttpServletRequest request) {
+
+        return buildResponse(
+            HttpStatus.NOT_FOUND,
+            exception.getMessage(),
+            request.getRequestURI()
+        );
+    }
+
+    @ExceptionHandler(InvalidQueueStatusException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidQueueStatus(
+            InvalidQueueStatusException exception,
+            HttpServletRequest request) {
+
+        return buildResponse(
+            HttpStatus.BAD_REQUEST,
+            exception.getMessage(),
+            request.getRequestURI()
+        );
+    }
+
+    @ExceptionHandler(InvalidQueueCheckInException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidQueueCheckIn(
+            InvalidQueueCheckInException exception,
             HttpServletRequest request) {
 
         return buildResponse(
